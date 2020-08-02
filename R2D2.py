@@ -1,5 +1,5 @@
 
-
+import numpy as np 
 
 class R2D2:
 
@@ -7,12 +7,14 @@ class R2D2:
     def __init__(self):
 
 
-        self.model = ?
+        #self.model = ?
 
         pass
 
 
     def get_action(self, state, eps=0.0):
+
+        action = np.random.randint(4)
 
         return action
 

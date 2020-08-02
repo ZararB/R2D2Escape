@@ -2,7 +2,7 @@ import pybullet as p
 import pybullet_data 
 import time 
 import numpy as np 
-
+from math import sin, cos
 
 
 class Environment(object):
@@ -42,22 +42,22 @@ class Environment(object):
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
         p.setRealTimeSimulation(0)
-        self.speed = 1000
+        self.speed = 0.001
+        self.walls = []
         self.wallThickness = 0.1
         self.wallHeight = 1 
         self.wallColor = [1, 1, 1, 1]
-        
-        self.rotation_speed = 1
+        self.agent = 'r2d2.urdf'
+        self.rotationSpeed = 0.001
         self.max_timesteps = 10000
         self.spawnPos = [0, 0, 1]
-        self.walls = []
         self.spawnOrn = p.getQuaternionFromEuler([0, 0, 0])
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
 
 
-    def generate_world(self, agent='r2d2.urdf', escapeLength=20, corridorLength= 5,numObstacles=3, obstacleOpeningLength=0.5,  r2d2DistanceAheadOfWall=3, seed=42):
-
+    def generate_world(self, agent='r2d2.urdf', escapeLength=50, corridorLength= 5,numObstacles=5, obstacleOpeningLength=0.5,  r2d2DistanceAheadOfWall=3, seed=42):
+        
         totalLength = escapeLength + r2d2DistanceAheadOfWall
         #np.random.seed(seed)
         distanceBetweenObstacles = escapeLength/numObstacles
@@ -107,7 +107,7 @@ class Environment(object):
             p.createMultiBody(baseCollisionShapeIndex=westWallCollisionShapeId, baseVisualShapeIndex=westWallVisualShapeId, basePosition=westWallBasePosition)
 
 
-    def reset(self, agent='r2d2.urdf', startPos=[0,0,1], startOrn=[0,0,0]):
+    def reset(self, agent='r2d2.urdf'):
         '''
         Reset world state to given initial state
         '''
@@ -117,7 +117,7 @@ class Environment(object):
         self.generate_world()
 
 
-        for _ in range(10000):
+        for _ in range(100000):
             p.stepSimulation()
             time.sleep(1./240)
 
@@ -132,6 +132,9 @@ class Environment(object):
     def step(self, action):
 
         pos_t, orn_t = p.getBasePositionAndOrientation(self.r2d2Id)
+        
+        pos_t1 = pos_t = np.array(pos_t)
+        orn_t1 = orn_t = np.array(p.getEulerFromQuaternion(orn_t))
 
         #TODO Apply solution0 Zarar
 
@@ -140,21 +143,21 @@ class Environment(object):
         if action == 0 :
             #TODO Implement without using p.LINK_FRAME
             #TODO Excerise: Determine the force that will move the agent relative to its local axis 
-            force = np.array([1, 0, 0]) * self.speed
-            p.applyExternalForce(self.r2d2Id, -1, [0, 1000, 0], pos_t, p.LINK_FRAME)
+            pos_t1 = pos_t + np.array([-sin(orn_t[2]), cos(orn_t[2]), 0])*self.speed
         
         elif action == 1:
-            force = np.array([-1, 0, 0]) * self.speed
-            p.applyExternalForce(self.r2d2Id, -1, force, pos_t, p.LINK_FRAME)
+            pos_t1 = pos_t - [-sin(orn_t[2]), cos(orn_t[2]), 0]*self.speed
             
         elif action == 2:
             #TODO Determine torque to be applied 
-            torque = np.array([0, 0, 1]) * self.rotation_speed
-            p.applyExternalTorque(self.r2d2Id, -1, torque, pos_t, p.LINK_FRAME)
+            orn_t1 = orn_t - [0, 0, 1]*self.rotationSpeed
 
         elif action == 3:
-            torque =np.array([0, 0, -1]) * self.rotation_speed
-            p.applyExternalTorque(self.r2d2Id, -1, torque, pos_t, p.LINK_FRAME)
+            orn_t1 = orn_t + [0, 0, 1]*self.rotationSpeed
+
+        p.removeBody(self.r2d2Id)
+        self.r2d2Id = p.loadURDF(self.agent, pos_t1, p.getQuaternionFromEuler(orn_t1))
+
             
         p.stepSimulation()
         time.sleep(1./240)
@@ -176,7 +179,7 @@ class Environment(object):
         #TODO Attach camera to agent
         img_width = 1280 
         img_height = 720
-
+        state = None
         # state == np array shape (width, height, 3)
         return state 
 
@@ -195,17 +198,12 @@ class Environment(object):
         Returns True if agent completes escape (x >= 100) or if episode duration > max_episode_length 
         '''
         #TODO Write is_done function Niranjan
-        pos, orn = p.getBasePositionAndOrientation(self.r2d2)
+        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
 
 
-        
+        done = False
         return done     
 
 
-
-
-
-
 env = Environment()
-
-st = env.reset()
+env.reset()

@@ -1,14 +1,15 @@
 
 
 import Environment
-
+import R2D2 
 
 env = Environment.Environment()
+agent = R2D2.R2D2()
 
 s0 = env.reset()
 
 for i in range(1000):
-    at = 0
+    at = 2
     st1, rt, done, debug = env.step(at)
 
     if done:
