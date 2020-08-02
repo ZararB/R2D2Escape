@@ -145,6 +145,9 @@ class Environment(object):
         #TODO Write is_done function Niranjan
         pos, orn = p.getBasePositionAndOrientation(self.r2d2)
 
-
+        if (self.get_reward >= 100) | (self.timestep>=self.max_timesteps):
+            done=True
+        else:
+            done=False
         
         return done     
