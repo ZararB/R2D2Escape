@@ -7,7 +7,6 @@ from math import sin, cos
 
 class Environment(object):
 
-
     '''
     State Space:
 
@@ -35,23 +34,25 @@ class Environment(object):
     Solution1: Apply force to multiple links to prevent it from tipping over
     '''
 
-
     def __init__(self):
 
         client = p.connect(p.GUI)
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
         p.setRealTimeSimulation(0)
-        self.speed = 0.001
+        self.speed = 20
         self.walls = []
         self.wallThickness = 0.1
         self.wallHeight = 1 
         self.wallColor = [1, 1, 1, 1]
         self.agent = 'r2d2.urdf'
-        self.rotationSpeed = 0.001
+        self.rotationSpeed = 20
         self.max_timesteps = 10000
         self.spawnPos = [0, 0, 1]
         self.spawnOrn = p.getQuaternionFromEuler([0, 0, 0])
+        self.prevAction = -1
+        self.forces = 100
+        
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
 
@@ -117,7 +118,7 @@ class Environment(object):
         self.generate_world()
 
 
-        for _ in range(100000):
+        for _ in range(100):
             p.stepSimulation()
             time.sleep(1./240)
 
@@ -126,9 +127,6 @@ class Environment(object):
 
         return initial_obs
 
-
-
-
     def step(self, action):
 
         pos_t, orn_t = p.getBasePositionAndOrientation(self.r2d2Id)
@@ -136,29 +134,10 @@ class Environment(object):
         pos_t1 = pos_t = np.array(pos_t)
         orn_t1 = orn_t = np.array(p.getEulerFromQuaternion(orn_t))
 
-        #TODO Apply solution0 Zarar
+        if action != self.prevAction:
+            prevAction = action
+            self.setAction(action)
 
-        #TODO Try to solve using solution1 Rajat 
-
-        if action == 0 :
-            #TODO Implement without using p.LINK_FRAME
-            #TODO Excerise: Determine the force that will move the agent relative to its local axis 
-            pos_t1 = pos_t + np.array([-sin(orn_t[2]), cos(orn_t[2]), 0])*self.speed
-        
-        elif action == 1:
-            pos_t1 = pos_t - [-sin(orn_t[2]), cos(orn_t[2]), 0]*self.speed
-            
-        elif action == 2:
-            #TODO Determine torque to be applied 
-            orn_t1 = orn_t - [0, 0, 1]*self.rotationSpeed
-
-        elif action == 3:
-            orn_t1 = orn_t + [0, 0, 1]*self.rotationSpeed
-
-        p.removeBody(self.r2d2Id)
-        self.r2d2Id = p.loadURDF(self.agent, pos_t1, p.getQuaternionFromEuler(orn_t1))
-
-            
         p.stepSimulation()
         time.sleep(1./240)
 
@@ -171,6 +150,49 @@ class Environment(object):
 
         return next_obs, reward, done, debug
 
+    def setAction(self,action):
+        '''
+        Sets the action the r2d2 should be taking (move forward/backward or rotate CW, CCW).
+        There are 15 joints in this robot.
+
+        Joint at index 2 is "right_front_wheel_joint"
+        Joint at index 3 is "right_back_wheel_joint"
+        Joint at index 7 is "left_front_wheel_joint"
+        Joint at index 8 is "left_back_wheel_joint"
+
+        These are the joints that matter for movement. Following code can give information of all joints:
+
+        for i in range(0,15):
+            print(p.getJointInfo(self.r2d2Id,i))
+        
+        Next Steps: Find a mechanical engineer to setup specific values of the relevant joints, to obtain refined movement.
+        '''
+
+        if action == 0:
+            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
+                                        controlMode = p.VELOCITY_CONTROL,
+                                        targetVelocities = [0,0,-self.speed,-self.speed,0,0,-self.speed,-self.speed,0,0,0,0,0,0,0],
+                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+
+        elif action == 1:
+            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
+                                        controlMode = p.VELOCITY_CONTROL,
+                                        targetVelocities = [0,0,self.speed,self.speed,0,0,self.speed,self.speed,0,0,0,0,0,0,0],
+                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+        elif action == 2:
+            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
+                                        controlMode = p.VELOCITY_CONTROL,
+                                        targetVelocities = [0,0,-self.rotationSpeed,-self.rotationSpeed,0,0,self.rotationSpeed,self.rotationSpeed,0,0,0,0,0,0,0],
+                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+        elif action == 3:
+            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
+                                        controlMode = p.VELOCITY_CONTROL,
+                                        targetVelocities = [0,0,self.rotationSpeed,self.rotationSpeed,0,0,-self.rotationSpeed,-self.rotationSpeed,0,0,0,0,0,0,0],
+                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
 
     def get_observation(self):
         '''
@@ -198,12 +220,6 @@ class Environment(object):
         Returns True if agent completes escape (x >= 100) or if episode duration > max_episode_length 
         '''
         #TODO Write is_done function Niranjan
-        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
-
-
+        # pos, orn = p.getBasePositionAndOrientation(self.r2d2)
         done = False
         return done     
-
-
-env = Environment()
-env.reset()
