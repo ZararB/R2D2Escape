@@ -36,7 +36,8 @@ class Environment(object):
 
     def __init__(self):
 
-        client = p.connect(p.DIRECT)
+        
+        client = p.connect(p.GUI) # We want to connect using p.DIRECT instead. Will change after render function is complete
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
         p.setRealTimeSimulation(0)
@@ -247,3 +248,12 @@ class Environment(object):
         
         return done     
 
+    def render(self):
+
+        '''
+        Instead of rendering the physics engine by using a p.GUI connection method, we are going to connect using p.DIRECT and 
+        render using cameras instead. 
+        #TODO Create a 3rd person view camera and make its position relative to the agent's position. This camera is different 
+        than the one used to get the observation for the agent. 
+        #TODO Grab frames using this camera and draw the images to a window using pygame.        
+        '''

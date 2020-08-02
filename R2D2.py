@@ -38,6 +38,8 @@ class R2D2:
             
         return action
 
-    
+    def preprocess_state(self, state):
+        return model_input
+        
     def update(self, batch):
         pass
