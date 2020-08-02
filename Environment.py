@@ -43,29 +43,81 @@ class Environment(object):
         p.setGravity(0,0,-9.8)
         p.setRealTimeSimulation(0)
         self.speed = 1000
+        self.wallThickness = 0.1
+        self.wallHeight = 1 
+        self.wallColor = [1, 1, 1, 1]
+        
         self.rotation_speed = 1
         self.max_timesteps = 10000
-
+        self.spawnPos = [0, 0, 1]
+        self.walls = []
+        self.spawnOrn = p.getQuaternionFromEuler([0, 0, 0])
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
-        planeID = p.loadURDF("plane.urdf")
 
+
+
+    def generate_world(self, agent='r2d2.urdf', escapeLength=20, corridorLength= 5,numObstacles=3, obstacleOpeningLength=0.5,  r2d2DistanceAheadOfWall=3, seed=42):
+
+        totalLength = escapeLength + r2d2DistanceAheadOfWall
+        #np.random.seed(seed)
+        distanceBetweenObstacles = escapeLength/numObstacles
+
+        p.resetSimulation()
+        p.setGravity(0, 0, -10)
+        self.planeId = p.loadURDF("plane.urdf")
+        self.r2d2Id = p.loadURDF(agent, self.spawnPos, self.spawnOrn)
+
+        # Create walls enclosing tunnel
+ 
+        self.nsHalfExtents = [corridorLength, self.wallThickness, self.wallHeight]
+        self.ewHalfExtents = [self.wallThickness, totalLength/2, self.wallHeight]
+        
+        self.nWallCollisionShapeId = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=self.nsHalfExtents)
+        self.sWallCollisionShapeId = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=self.nsHalfExtents)
+        self.eWallCollisionShapeId = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=self.ewHalfExtents)
+        self.wWallCollisionShapeId = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=self.ewHalfExtents)
+
+        self.nWallVisualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX, rgbaColor=self.wallColor, halfExtents=self.nsHalfExtents)
+        self.sWallVisualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX, rgbaColor=self.wallColor, halfExtents=self.nsHalfExtents)
+        self.eWallVisualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX, rgbaColor=self.wallColor, halfExtents=self.ewHalfExtents)
+        self.wWallVisualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX, rgbaColor=self.wallColor, halfExtents=self.ewHalfExtents)
+ 
+        self.nWallId = p.createMultiBody(basePosition=[0, escapeLength, self.wallHeight], baseCollisionShapeIndex=self.nWallCollisionShapeId, baseVisualShapeIndex=self.nWallVisualShapeId) 
+        self.sWallId = p.createMultiBody(basePosition=[0, -r2d2DistanceAheadOfWall, self.wallHeight], baseCollisionShapeIndex=self.sWallCollisionShapeId, baseVisualShapeIndex=self.sWallVisualShapeId)
+        self.eWallId = p.createMultiBody(basePosition=[corridorLength, -r2d2DistanceAheadOfWall/2+escapeLength/2, self.wallHeight], baseCollisionShapeIndex=self.eWallCollisionShapeId, baseVisualShapeIndex=self.eWallVisualShapeId) 
+        self.wWallId = p.createMultiBody(basePosition=[-corridorLength, -r2d2DistanceAheadOfWall/2+escapeLength/2,self.wallHeight], baseCollisionShapeIndex=self.wWallCollisionShapeId, baseVisualShapeIndex=self.wWallVisualShapeId)
+
+        # Generate obstacles
+
+        for i in range(numObstacles):
+            
+            obstacleYCord = distanceBetweenObstacles*(i) + r2d2DistanceAheadOfWall
+            max_length = corridorLength - obstacleOpeningLength
+            westX = np.random.rand()*max_length 
+            eastX = corridorLength - westX - obstacleOpeningLength
+            westWallCollisionShapeId = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=[westX, self.wallThickness, self.wallHeight])
+            westWallVisualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX, rgbaColor=self.wallColor, halfExtents=[westX, self.wallThickness, self.wallHeight])
+            
+            eastWallCollisionShapeId = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=[eastX, self.wallThickness, self.wallHeight])
+            eastWallVisualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX, rgbaColor=self.wallColor, halfExtents=[eastX, self.wallThickness, self.wallHeight])
+
+            eastWallBasePosition = [corridorLength-self.wallThickness-eastX, obstacleYCord, self.wallHeight]
+            westWallBasePosition = [-corridorLength+westX, obstacleYCord, self.wallHeight]
+            p.createMultiBody(baseCollisionShapeIndex=eastWallCollisionShapeId, baseVisualShapeIndex=eastWallVisualShapeId, basePosition=eastWallBasePosition)
+            p.createMultiBody(baseCollisionShapeIndex=westWallCollisionShapeId, baseVisualShapeIndex=westWallVisualShapeId, basePosition=westWallBasePosition)
 
 
     def reset(self, agent='r2d2.urdf', startPos=[0,0,1], startOrn=[0,0,0]):
         '''
         Reset world state to given initial state
         '''
+
         self.timestep = 0
-        startOrn = p.getQuaternionFromEuler(startOrn)
-        self.r2d2Id = p.loadURDF(agent, startPos, startOrn)
+
+        self.generate_world()
 
 
-        # Create obstacle course
-
-        #TODO Spawn planes that enclose a rectangular area of dimensions 10x100 (widthxheight) Zarar 
-
-
-        for _ in range(500):
+        for _ in range(10000):
             p.stepSimulation()
             time.sleep(1./240)
 
@@ -148,3 +200,12 @@ class Environment(object):
 
         
         return done     
+
+
+
+
+
+
+env = Environment()
+
+st = env.reset()
