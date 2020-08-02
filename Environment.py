@@ -36,7 +36,7 @@ class Environment(object):
 
     def __init__(self):
 
-        client = p.connect(p.GUI)
+        client = p.connect(p.DIRECT)
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
         p.setRealTimeSimulation(0)
@@ -57,7 +57,7 @@ class Environment(object):
 
 
 
-    def generate_world(self, agent='r2d2.urdf', escapeLength=50, corridorLength= 5,numObstacles=5, obstacleOpeningLength=0.5,  r2d2DistanceAheadOfWall=3, seed=42):
+    def generate_world(self, agent='r2d2.urdf', escapeLength=50, corridorLength= 5,numObstacles=10, obstacleOpeningLength=0.5,  r2d2DistanceAheadOfWall=3, seed=42):
         
         totalLength = escapeLength + r2d2DistanceAheadOfWall
         #np.random.seed(seed)
@@ -66,7 +66,10 @@ class Environment(object):
         p.resetSimulation()
         p.setGravity(0, 0, -10)
         self.planeId = p.loadURDF("plane.urdf")
+
         self.r2d2Id = p.loadURDF(agent, self.spawnPos, self.spawnOrn)
+        # Attach camera to agent
+
 
         # Create walls enclosing tunnel
  
@@ -88,6 +91,8 @@ class Environment(object):
         self.eWallId = p.createMultiBody(basePosition=[corridorLength, -r2d2DistanceAheadOfWall/2+escapeLength/2, self.wallHeight], baseCollisionShapeIndex=self.eWallCollisionShapeId, baseVisualShapeIndex=self.eWallVisualShapeId) 
         self.wWallId = p.createMultiBody(basePosition=[-corridorLength, -r2d2DistanceAheadOfWall/2+escapeLength/2,self.wallHeight], baseCollisionShapeIndex=self.wWallCollisionShapeId, baseVisualShapeIndex=self.wWallVisualShapeId)
 
+
+        self.walls.extend([self.nWallId, self.sWallId, self.eWallId, self.wWallId])
         # Generate obstacles
 
         for i in range(numObstacles):
@@ -104,9 +109,11 @@ class Environment(object):
 
             eastWallBasePosition = [corridorLength-self.wallThickness-eastX, obstacleYCord, self.wallHeight]
             westWallBasePosition = [-corridorLength+westX, obstacleYCord, self.wallHeight]
-            p.createMultiBody(baseCollisionShapeIndex=eastWallCollisionShapeId, baseVisualShapeIndex=eastWallVisualShapeId, basePosition=eastWallBasePosition)
-            p.createMultiBody(baseCollisionShapeIndex=westWallCollisionShapeId, baseVisualShapeIndex=westWallVisualShapeId, basePosition=westWallBasePosition)
+            
+            wObstacleId = p.createMultiBody(baseCollisionShapeIndex=eastWallCollisionShapeId, baseVisualShapeIndex=eastWallVisualShapeId, basePosition=eastWallBasePosition)
+            eObstacleId = p.createMultiBody(baseCollisionShapeIndex=westWallCollisionShapeId, baseVisualShapeIndex=westWallVisualShapeId, basePosition=westWallBasePosition)
 
+            self.walls.extend([wObstacleId, eObstacleId])
 
     def reset(self, agent='r2d2.urdf'):
         '''
@@ -118,7 +125,7 @@ class Environment(object):
         self.generate_world()
 
 
-        for _ in range(100):
+        for _ in range(10000):
             p.stepSimulation()
             time.sleep(1./240)
 
@@ -168,6 +175,10 @@ class Environment(object):
         Next Steps: Find a mechanical engineer to setup specific values of the relevant joints, to obtain refined movement.
         '''
 
+        #TODO Smooth out the actions 
+        #TODO Learn about moments Rajat
+
+
         if action == 0:
             p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
                                         jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
@@ -194,11 +205,17 @@ class Environment(object):
                                         targetVelocities = [0,0,self.rotationSpeed,self.rotationSpeed,0,0,-self.rotationSpeed,-self.rotationSpeed,0,0,0,0,0,0,0],
                                         forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
 
-    def get_observation(self):
+    
+    def getState(self):
+
+        return stackFrames
+    
+    def getFrame(self):
         '''
         Returns the observation 
         '''
-        #TODO Attach camera to agent
+       
+        #TODO Get image from camera
         img_width = 1280 
         img_height = 720
         state = None
@@ -217,9 +234,16 @@ class Environment(object):
 
     def is_done(self):
         '''
-        Returns True if agent completes escape (x >= 100) or if episode duration > max_episode_length 
+        Returns True if agent completes escape (x >= 100) or if episode duration > max_episode_length or if collision is detected 
         '''
         #TODO Write is_done function Niranjan
-        # pos, orn = p.getBasePositionAndOrientation(self.r2d2)
-        done = False
+        #TODO Check if agent collided with any wall
+        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
+
+        if (pos[1] >= 100) | (self.timestep>=self.max_timesteps):
+            done=True
+        else:
+            done=False
+        
         return done     
+
