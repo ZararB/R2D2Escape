@@ -126,12 +126,12 @@ class Environment(object):
         self.generate_world()
 
 
-        for _ in range(10000):
+        for _ in range(100):
             p.stepSimulation()
             time.sleep(1./240)
 
 
-        initial_obs = self.get_observation()
+        initial_obs = self.getFrame()
 
         return initial_obs
 
@@ -149,7 +149,7 @@ class Environment(object):
         p.stepSimulation()
         time.sleep(1./240)
 
-        next_obs = self.get_observation()
+        next_obs = self.getFrame()
         reward = self.get_reward()
         done = self.is_done()
         debug = []
@@ -208,7 +208,7 @@ class Environment(object):
 
     
     def getState(self):
-
+        stackFrames = []
         return stackFrames
     
     def getFrame(self):
