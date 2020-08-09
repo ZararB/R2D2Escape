@@ -40,9 +40,6 @@ class Environment(object):
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
 
-        self.speed = 20
-        self.rotation_speed = 20
-        self.forces = 100
         self.max_timesteps = 10000
         self.prevAction = -1 
 
@@ -99,35 +96,32 @@ class Environment(object):
 
         for i in range(0,15):
             print(p.getJointInfo(self.r2d2Id,i))
-        
-        Next Steps: Find a mechanical engineer to setup specific values of the relevant joints, to obtain refined movement.
         '''
 
         if action == 0:
-            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,-self.speed,-self.speed,0,0,-self.speed,-self.speed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
-
+                p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                            jointIndices = [2,3,6,7], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [-20,-20,-20,-20],
+                                            forces = [100,100,100,100])
         elif action == 1:
-            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,self.speed,self.speed,0,0,self.speed,self.speed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+                p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                            jointIndices = [2,3,6,7], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [20,20,20,20],
+                                            forces = [100,100,100,100])
         elif action == 2:
-            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,-self.rotation_speed,-self.rotation_speed,0,0,self.rotation_speed,self.rotation_speed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+                p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                            jointIndices = [3,6], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [80,-80],
+                                            forces = [100,100])
         elif action == 3:
             p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,self.rotation_speed,self.rotation_speed,0,0,-self.rotation_speed,-self.rotation_speed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+                                            jointIndices = [2,7], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [-80,80],
+                                            forces = [100,100])
 
     def get_observation(self):
         '''
