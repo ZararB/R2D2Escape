@@ -41,18 +41,15 @@ class Environment(object):
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
         p.setRealTimeSimulation(0)
-        self.speed = 20
         self.walls = []
         self.wallThickness = 0.1
         self.wallHeight = 1 
         self.wallColor = [1, 1, 1, 1]
         self.agent = 'r2d2.urdf'
-        self.rotationSpeed = 20
         self.max_timesteps = 10000
         self.spawnPos = [0, 0, 1]
         self.spawnOrn = p.getQuaternionFromEuler([0, 0, 0])
         self.prevAction = -1
-        self.forces = 100
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
