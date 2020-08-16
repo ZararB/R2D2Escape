@@ -10,8 +10,6 @@ class R2D2(object):
 
         self.model_input_x = 480
         self.model_input_y = 480
-
-
         self.model = Sequential([
         Conv2D(32, 8, 4, input_shape=(self.model_input_x, self.model_input_y, 4,),
             activation='relu'),

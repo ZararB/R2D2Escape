@@ -19,7 +19,7 @@ for e in range(num_episodes):
 
     while True:
     
-        at = 0
+        at = 3
         st1, rt, done, debug = env.step(at)
         episode_reward += rt
 

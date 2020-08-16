@@ -4,9 +4,13 @@ import time
 import numpy as np 
 from math import sin, cos
 import cv2
+import matplotlib.pyplot as plt
 
 
 
+#TODO Take action for K timesteps, and sample frame after K timesteps Zarar
+#TODO Run multiple envs in the world Afzal Rajat Yousef
+#TODO Fix getObservation func Rajat
 
 
 class Environment(object):
@@ -59,6 +63,7 @@ class Environment(object):
         self.frameStackSize = 4 
         self.frames = []
         self.collisionDetected = False
+        self.counter = 0 
         
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -134,9 +139,9 @@ class Environment(object):
 
         for _ in range(100):
             p.stepSimulation()
-            self.frames.append(self.getFrame())
+            #self.frames.append(self.getFrame())
 
-        self.frames = self.frames[-self.frameStackSize:]
+        #self.frames = self.frames[-self.frameStackSize:]
         initial_obs = self.getObservation()
 
         return initial_obs
@@ -154,8 +159,13 @@ class Environment(object):
 
         p.stepSimulation()
 
-        self.frames.append(self.getFrame())
-        next_obs = self.getObservation()
+        #self.frames.append(self.getFrame())
+        if self.timestep % 5 == 0:
+            next_obs = self.getFrame()
+            self.frames.append(next_obs)
+        else:
+            next_obs = self.frames[-1]
+        #next_obs = self.getObservation()
         done = self.is_done()
         reward = self.get_reward()
         
@@ -215,25 +225,48 @@ class Environment(object):
         '''
 
         frames = self.frames[-4:]
-
-        obs = frames/frames.max(axis = 0)
         
-        return obs
+
+        obs /= 255.0
+        return frames
     
     def getFrame(self):
         '''
-        Returns the camera image taken at the timestep the agent is in 
-        np array of shape (img_width, img_height, color_channels) (80, 80, 3) Afzal
+        Returns the observation 
         '''
-
+       
+        #TODO Get image from camera
         img_width = 1280 
         img_height = 720
-        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
-      
+
+
+        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id) 
+
+        eyePos = [pos[0],pos[1],1.5]
         
-        frame = []
-        # state == np array shape (width, height, 3)
-        return frame 
+        orn = np.array(p.getEulerFromQuaternion(orn))  
+        yaw=orn[2]+3.14159/2
+        targPos = [2*cos(yaw)+pos[0],2*sin(yaw)+pos[1],1]
+        print(pos)
+        print(targPos)
+    
+        viewMatrix = p.computeViewMatrix(
+    cameraEyePosition=eyePos,
+    cameraTargetPosition=targPos,
+    cameraUpVector=[0,0,1])  
+        #viewMatrix= p.computeViewMatrixFromYawPitchRoll([0,1,0], 2,0,0,0,2)
+
+        projectionMatrix = [
+        1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0,
+        -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0
+    ]
+
+        state = p.getCameraImage(img_width, img_height, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)
+        
+        plt.imsave('test{}.png'.format(self.timestep),state[2])
+
+    
+        return state[2] 
 
 
     def get_reward(self, weight=1):
