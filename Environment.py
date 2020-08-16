@@ -179,34 +179,30 @@ class Environment(object):
         Next Steps: Find a mechanical engineer to setup specific values of the relevant joints, to obtain refined movement.
         '''
 
-        #TODO Smooth out the actions 
-
         if action == 0:
-            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,-self.speed,-self.speed,0,0,-self.speed,-self.speed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
-
+                p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                            jointIndices = [2,3,6,7], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [-20,-20,-20,-20],
+                                            forces = [100,100,100,100])
         elif action == 1:
-            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,self.speed,self.speed,0,0,self.speed,self.speed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+                p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                            jointIndices = [2,3,6,7], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [20,20,20,20],
+                                            forces = [100,100,100,100])
         elif action == 2:
-            p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,-self.rotationSpeed,-self.rotationSpeed,0,0,self.rotationSpeed,self.rotationSpeed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
+                p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
+                                            jointIndices = [3,6], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [80,-80],
+                                            forces = [100,100])
         elif action == 3:
             p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
-                                        jointIndices = list(range(0,p.getNumJoints(self.r2d2Id))), 
-                                        controlMode = p.VELOCITY_CONTROL,
-                                        targetVelocities = [0,0,self.rotationSpeed,self.rotationSpeed,0,0,-self.rotationSpeed,-self.rotationSpeed,0,0,0,0,0,0,0],
-                                        forces = [0,0,self.forces,self.forces,0,0,self.forces,self.forces,0,0,0,0,0,0,0])
-
+                                            jointIndices = [2,7], 
+                                            controlMode = p.VELOCITY_CONTROL,
+                                            targetVelocities = [-80,80],
+                                            forces = [100,100])
     
     def getObservation(self):
         '''
