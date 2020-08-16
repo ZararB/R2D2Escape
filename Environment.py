@@ -5,6 +5,10 @@ import numpy as np
 from math import sin, cos
 import cv2
 
+
+
+
+
 class Environment(object):
 
     '''
@@ -206,10 +210,13 @@ class Environment(object):
     
     def getObservation(self):
         '''
+        Input list(4, height, width) -> Output NpArray(height, width, 4)
         Return stack of frames as numpy array of shape (width, height, stackSize) also normalized Rajat
         '''
 
         frames = self.frames[-4:]
+
+        obs = frames/frames.max(axis = 0)
         
         return obs
     
