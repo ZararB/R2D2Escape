@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 #TODO Take action for K timesteps, and sample frame after K timesteps Zarar
-#TODO Run multiple envs in the world Afzal Rajat Yousef
+#TODO Run multiple envs in the world Afzal Rajat Yousef Zarar
 #TODO Fix getObservation func Rajat
 
 
