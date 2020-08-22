@@ -3,6 +3,14 @@ import pybullet_data
 import time 
 import numpy as np 
 from math import sin, cos
+import cv2
+import matplotlib.pyplot as plt
+
+
+
+#TODO Take action for K timesteps, and sample frame after K timesteps Zarar
+#TODO Run multiple envs in the world Afzal Rajat Yousef
+#TODO Fix getObservation func Rajat
 
 
 class Environment(object):
@@ -37,19 +45,26 @@ class Environment(object):
     def __init__(self):
 
         
-        client = p.connect(p.GUI) # We want to connect using p.DIRECT instead. Will change after render function is complete
+        client = p.connect(p.DIRECT) # We want to connect using p.DIRECT instead. Will change after render function is complete
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
-        p.setRealTimeSimulation(0)
+        self.speed = 20
         self.walls = []
         self.wallThickness = 0.1
         self.wallHeight = 1 
         self.wallColor = [1, 1, 1, 1]
         self.agent = 'r2d2.urdf'
+        self.rotationSpeed = 20
         self.max_timesteps = 10000
         self.spawnPos = [0, 0, 1]
         self.spawnOrn = p.getQuaternionFromEuler([0, 0, 0])
         self.prevAction = -1
+        self.forces = 100
+        self.frameStackSize = 4 
+        self.frames = []
+        self.collisionDetected = False
+        self.counter = 0 
+        
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
@@ -58,16 +73,13 @@ class Environment(object):
     def generate_world(self, agent='r2d2.urdf', escapeLength=50, corridorLength= 5,numObstacles=10, obstacleOpeningLength=0.5,  r2d2DistanceAheadOfWall=3, seed=42):
         
         totalLength = escapeLength + r2d2DistanceAheadOfWall
-        #np.random.seed(seed)
+        np.random.seed(seed)
         distanceBetweenObstacles = escapeLength/numObstacles
 
         p.resetSimulation()
         p.setGravity(0, 0, -10)
-        self.planeId = p.loadURDF("plane.urdf")
-
+        self.planeId = p.loadURDF("plane.urdf")       
         self.r2d2Id = p.loadURDF(agent, self.spawnPos, self.spawnOrn)
-        # Attach camera to agent
-
 
         # Create walls enclosing tunnel
  
@@ -113,29 +125,31 @@ class Environment(object):
 
             self.walls.extend([wObstacleId, eObstacleId])
 
+
+
     def reset(self, agent='r2d2.urdf'):
         '''
         Reset world state to given initial state
         '''
 
         self.timestep = 0
-
+        self.collisionDetected = False
         self.generate_world()
 
 
         for _ in range(100):
             p.stepSimulation()
-            time.sleep(1./240)
+            #self.frames.append(self.getFrame())
 
-
-        initial_obs = self.getFrame()
+        #self.frames = self.frames[-self.frameStackSize:]
+        initial_obs = self.getObservation()
 
         return initial_obs
 
     def step(self, action):
 
         pos_t, orn_t = p.getBasePositionAndOrientation(self.r2d2Id)
-        
+
         pos_t1 = pos_t = np.array(pos_t)
         orn_t1 = orn_t = np.array(p.getEulerFromQuaternion(orn_t))
 
@@ -144,11 +158,17 @@ class Environment(object):
             self.setAction(action)
 
         p.stepSimulation()
-        time.sleep(1./240)
 
-        next_obs = self.getFrame()
-        reward = self.get_reward()
+        #self.frames.append(self.getFrame())
+        if self.timestep % 5 == 0:
+            next_obs = self.getFrame()
+            self.frames.append(next_obs)
+        else:
+            next_obs = self.frames[-1]
+        #next_obs = self.getObservation()
         done = self.is_done()
+        reward = self.get_reward()
+        
         debug = []
 
         self.timestep += 1
@@ -169,11 +189,9 @@ class Environment(object):
 
         for i in range(0,15):
             print(p.getJointInfo(self.r2d2Id,i))
+        
+        Next Steps: Find a mechanical engineer to setup specific values of the relevant joints, to obtain refined movement.
         '''
-
-        #TODO Smooth out the actions 
-        #TODO Learn about moments Rajat
-
 
         if action == 0:
                 p.setJointMotorControlArray(bodyUniqueId = self.r2d2Id,
@@ -199,11 +217,18 @@ class Environment(object):
                                             controlMode = p.VELOCITY_CONTROL,
                                             targetVelocities = [-80,80],
                                             forces = [100,100])
-
     
-    def getState(self):
-        stackFrames = []
-        return stackFrames
+    def getObservation(self):
+        '''
+        Input list(4, height, width) -> Output NpArray(height, width, 4)
+        Return stack of frames as numpy array of shape (width, height, stackSize) also normalized Rajat
+        '''
+
+        frames = self.frames[-4:]
+        
+
+        obs /= 255.0
+        return frames
     
     def getFrame(self):
         '''
@@ -213,17 +238,47 @@ class Environment(object):
         #TODO Get image from camera
         img_width = 1280 
         img_height = 720
-        state = None
-        # state == np array shape (width, height, 3)
-        return state 
+
+
+        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id) 
+
+        eyePos = [pos[0],pos[1],1.5]
+        
+        orn = np.array(p.getEulerFromQuaternion(orn))  
+        yaw=orn[2]+3.14159/2
+        targPos = [2*cos(yaw)+pos[0],2*sin(yaw)+pos[1],1]
+        print(pos)
+        print(targPos)
+    
+        viewMatrix = p.computeViewMatrix(
+    cameraEyePosition=eyePos,
+    cameraTargetPosition=targPos,
+    cameraUpVector=[0,0,1])  
+        #viewMatrix= p.computeViewMatrixFromYawPitchRoll([0,1,0], 2,0,0,0,2)
+
+        projectionMatrix = [
+        1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0,
+        -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0
+    ]
+
+        state = p.getCameraImage(img_width, img_height, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)
+        
+        plt.imsave('test{}.png'.format(self.timestep),state[2])
+
+    
+        return state[2] 
 
 
     def get_reward(self, weight=1):
         '''
         Calculates and returns the reward that the agent maximizes
         '''
-        pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
-        reward = pos[0] - self.timestep*(weight)
+        if not self.collisionDetected:
+            pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
+            reward = pos[0] #- self.timestep*(weight)
+        else:
+            reward = -1
+
         return reward 
 
 
@@ -231,11 +286,22 @@ class Environment(object):
         '''
         Returns True if agent completes escape (x >= 100) or if episode duration > max_episode_length or if collision is detected 
         '''
-        #TODO Write is_done function Niranjan
-        #TODO Check if agent collided with any wall
+        contact = False
         pos, orn = p.getBasePositionAndOrientation(self.r2d2Id)
+        
 
-        if (pos[1] >= 100) | (self.timestep>=self.max_timesteps):
+        try:
+            contactPoints = np.array(p.getContactPoints(self.r2d2Id))
+            contactBodyIds = contactPoints[:,2]
+            contact = any(body in contactBodyIds for body in self.walls)
+    
+        except IndexError as e:
+            print(e)
+
+        if contact:
+            self.collisionDetected = True
+
+        if (pos[1] >= 100) | (self.timestep>=self.max_timesteps) | self.collisionDetected:
             done=True
         else:
             done=False
