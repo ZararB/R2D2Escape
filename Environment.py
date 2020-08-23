@@ -3,7 +3,7 @@ import pybullet_data
 import time 
 import numpy as np 
 from math import sin, cos
-import cv2
+#import cv2
 import matplotlib.pyplot as plt
 
 
@@ -64,8 +64,6 @@ class Environment(object):
         self.frames = []
         self.collisionDetected = False
         self.counter = 0 
-        
-        
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
 
@@ -142,8 +140,9 @@ class Environment(object):
             #self.frames.append(self.getFrame())
 
         #self.frames = self.frames[-self.frameStackSize:]
-        initial_obs = self.getObservation()
-
+        #initial_obs = self.getObservation()
+        initial_obs = []
+        
         return initial_obs
 
     def step(self, action):
@@ -168,7 +167,7 @@ class Environment(object):
         #next_obs = self.getObservation()
         done = self.is_done()
         reward = self.get_reward()
-        
+
         debug = []
 
         self.timestep += 1
@@ -220,14 +219,14 @@ class Environment(object):
     
     def getObservation(self):
         '''
-        Input list(4, height, width) -> Output NpArray(height, width, 4)
-        Return stack of frames as numpy array of shape (width, height, stackSize) also normalized Rajat
+        Input list(num_frames, w, h, rgba) -> Output NpArray(w, h, num_frames)
         '''
-
-        frames = self.frames[-4:]
         
-
-        obs /= 255.0
+        frames = np.array(self.frames[-4:])                             # Gets last 4 frames and converts list to NpArray
+        frames = np.dot(frames[...,:3],[0.2989, 0.5870, 0.1140])        # Converts from RGBA to greyscale
+        frames = np.transpose(frames,(1,2,0))                           # transposes frames to get desired axises
+        frames /= 255.0                                                 # Normalizes
+    
         return frames
     
     def getFrame(self):
@@ -265,7 +264,6 @@ class Environment(object):
         
         plt.imsave('test{}.png'.format(self.timestep),state[2])
 
-    
         return state[2] 
 
 
