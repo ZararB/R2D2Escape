@@ -24,12 +24,12 @@ for e in range(num_episodes):
     st = env.reset()
     episode_reward = 0
     t = 0 
+
     while True:
     
         at = agent.getAction(st, epsilon)
         st1, rt, done, debug = env.step(at)
         episode_reward += rt
-
 
         timestep = [st, at, rt, st1, done]
         st = st1
@@ -46,6 +46,7 @@ for e in range(num_episodes):
         
         epsilon = epsilon*epsilon_decay if epsilon < epsilon_min else epsilon_min
         t += 1 
+
         if done:
             print('Episode {} Finished with Reward {}'.format(eps_count, episode_reward))
             eps_count += 1

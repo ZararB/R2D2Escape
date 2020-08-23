@@ -16,7 +16,7 @@ import pygame
 class Environment(object):
 
     '''
-    State Space:
+    State Space: (width, height, frameStackSize)
 
     Action Space:
 
@@ -31,21 +31,13 @@ class Environment(object):
     wd - 
     sa -
     sd -  
-    
 
-    '''
-
-    '''
-    Problem: Agent is not moving continously when taking actions 
-    
-    Solution0: Destroy agent and spawn again in new position 
-    Solution1: Apply force to multiple links to prevent it from tipping over
     '''
 
     def __init__(self):
 
         
-        client = p.connect(p.DIRECT) # We want to connect using p.DIRECT instead. Will change after render function is complete
+        client = p.connect(p.GUI) 
         p.setTimeOut(2)
         p.setGravity(0,0,-9.8)
         self.speed = 20
@@ -167,9 +159,8 @@ class Environment(object):
 
         self.frames.append(self.getFrame())
         self.frames = self.frames[-self.frameStackSize:]
-        
+
         nextObs = self.getObservation()
-        
         done = self.isDone()
         reward = self.getReward()
         
@@ -222,7 +213,7 @@ class Environment(object):
                                             targetVelocities = [-80,80],
                                             forces = [100,100])
     
-    def getObservation(self):
+    def getObservationZ(self):
         '''
         Input list(4, height, width) -> Output NpArray(height, width, 4)
         Return stack of frames as numpy array of shape (width, height, stackSize) also normalized Rajat
@@ -230,14 +221,23 @@ class Environment(object):
 
         frames = self.frames[-self.frameStackSize:]
         obs = np.zeros((self.imgWidth, self.imgHeight, self.frameStackSize))
+        
         for i, frame in enumerate(frames):
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)/255.0
             obs[:,:,i] = frame
 
-
-        for i in range(self.frameStackSize):
-            plt.imsave('obs/img_{}.png'.format(i), obs[:,:,i])
         return obs
+
+
+    def getObservation(self):
+        '''
+        Input list(num_frames, w, h, rgba) -> Output NpArray(w, h, num_frames)
+        '''
+        
+        #frames = self.frames[-self.frameStackSize:]                                             
+        frames = np.transpose(self.frames,(1,2,0))                           
+        frames /= 255.0  
+            
+        return frames
     
     def getFrame(self):
         '''
@@ -252,21 +252,15 @@ class Environment(object):
         yaw=orn[2]+3.14159/2
         targPos = [2*cos(yaw)+pos[0],2*sin(yaw)+pos[1],1]
      
-        viewMatrix = p.computeViewMatrix(
-    cameraEyePosition=eyePos,
-    cameraTargetPosition=targPos,
-    cameraUpVector=[0,0,1])  
+        viewMatrix = p.computeViewMatrix(cameraEyePosition=eyePos,cameraTargetPosition=targPos,cameraUpVector=[0,0,1])  
 
         projectionMatrix = [
         1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0,
-        -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0
-    ]
-        state = p.getCameraImage(self.imgWidth, self.imgHeight, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+        -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0]
+        frame = p.getCameraImage(self.imgWidth, self.imgHeight, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix, renderer=p.ER_BULLET_HARDWARE_OPENGL)[2]
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)/255.0
 
-        #plt.imsave('imgs/test{}.png'.format(self.timestep),state[2])
-
-    
-        return np.array(state[2])[:,:,:3] 
+        return frame 
 
 
     def getReward(self, weight=1):
