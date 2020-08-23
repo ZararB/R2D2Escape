@@ -5,7 +5,7 @@ import numpy as np
 from math import sin, cos
 import cv2
 import matplotlib.pyplot as plt
-
+import pygame
 
 
 #TODO Take action for K timesteps, and sample frame after K timesteps Zarar
@@ -60,10 +60,14 @@ class Environment(object):
         self.spawnOrn = p.getQuaternionFromEuler([0, 0, 0])
         self.prevAction = -1
         self.forces = 100
-        self.frameStackSize = 4 
+        self.frameStackSize = 4
         self.frames = []
         self.collisionDetected = False
         self.counter = 0 
+        self.K = 3
+        self.viewer = None 
+        self.imgHeight = self.imgWidth = 300
+        self.screen = None
         
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -103,6 +107,7 @@ class Environment(object):
 
 
         self.walls.extend([self.nWallId, self.sWallId, self.eWallId, self.wWallId])
+
         # Generate obstacles
 
         for i in range(numObstacles):
@@ -136,15 +141,16 @@ class Environment(object):
         self.collisionDetected = False
         self.generate_world()
 
-
         for _ in range(100):
             p.stepSimulation()
-            #self.frames.append(self.getFrame())
+            self.frames.append(self.getFrame())
+            self.timestep +=1 
 
-        #self.frames = self.frames[-self.frameStackSize:]
-        initial_obs = self.getObservation()
+        self.frames = self.frames[-self.frameStackSize:]
 
-        return initial_obs
+        initialObs = self.getObservation()
+
+        return initialObs
 
     def step(self, action):
 
@@ -159,21 +165,19 @@ class Environment(object):
 
         p.stepSimulation()
 
-        #self.frames.append(self.getFrame())
-        if self.timestep % 5 == 0:
-            next_obs = self.getFrame()
-            self.frames.append(next_obs)
-        else:
-            next_obs = self.frames[-1]
-        #next_obs = self.getObservation()
-        done = self.is_done()
-        reward = self.get_reward()
+        self.frames.append(self.getFrame())
+        self.frames = self.frames[-self.frameStackSize:]
+        
+        nextObs = self.getObservation()
+        
+        done = self.isDone()
+        reward = self.getReward()
         
         debug = []
 
         self.timestep += 1
 
-        return next_obs, reward, done, debug
+        return nextObs, reward, done, debug
 
     def setAction(self,action):
         '''
@@ -224,22 +228,22 @@ class Environment(object):
         Return stack of frames as numpy array of shape (width, height, stackSize) also normalized Rajat
         '''
 
-        frames = self.frames[-4:]
-        
+        frames = self.frames[-self.frameStackSize:]
+        obs = np.zeros((self.imgWidth, self.imgHeight, self.frameStackSize))
+        for i, frame in enumerate(frames):
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)/255.0
+            obs[:,:,i] = frame
 
-        obs /= 255.0
-        return frames
+
+        for i in range(self.frameStackSize):
+            plt.imsave('obs/img_{}.png'.format(i), obs[:,:,i])
+        return obs
     
     def getFrame(self):
         '''
         Returns the observation 
         '''
-       
-        #TODO Get image from camera
-        img_width = 1280 
-        img_height = 720
-
-
+    
         pos, orn = p.getBasePositionAndOrientation(self.r2d2Id) 
 
         eyePos = [pos[0],pos[1],1.5]
@@ -247,29 +251,25 @@ class Environment(object):
         orn = np.array(p.getEulerFromQuaternion(orn))  
         yaw=orn[2]+3.14159/2
         targPos = [2*cos(yaw)+pos[0],2*sin(yaw)+pos[1],1]
-        print(pos)
-        print(targPos)
-    
+     
         viewMatrix = p.computeViewMatrix(
     cameraEyePosition=eyePos,
     cameraTargetPosition=targPos,
     cameraUpVector=[0,0,1])  
-        #viewMatrix= p.computeViewMatrixFromYawPitchRoll([0,1,0], 2,0,0,0,2)
 
         projectionMatrix = [
         1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0,
         -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0
     ]
+        state = p.getCameraImage(self.imgWidth, self.imgHeight, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix, renderer=p.ER_BULLET_HARDWARE_OPENGL)
 
-        state = p.getCameraImage(img_width, img_height, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)
-        
-        plt.imsave('test{}.png'.format(self.timestep),state[2])
+        #plt.imsave('imgs/test{}.png'.format(self.timestep),state[2])
 
     
-        return state[2] 
+        return np.array(state[2])[:,:,:3] 
 
 
-    def get_reward(self, weight=1):
+    def getReward(self, weight=1):
         '''
         Calculates and returns the reward that the agent maximizes
         '''
@@ -282,7 +282,7 @@ class Environment(object):
         return reward 
 
 
-    def is_done(self):
+    def isDone(self):
         '''
         Returns True if agent completes escape (x >= 100) or if episode duration > max_episode_length or if collision is detected 
         '''
@@ -316,4 +316,20 @@ class Environment(object):
         #TODO Create a 3rd person view camera and make its position relative to the agent's position. This camera is different 
         than the one used to get the observation for the agent. 
         #TODO Grab frames using this camera and draw the images to a window using pygame.        
+        #TODO Have the option to use different camera angles for viewing 
         '''
+
+        if self.screen is None:
+            pygame.init()
+            self.screen = pygame.display.set_mode((self.imgWidth, self.imgHeight))
+        
+        frame = self.frames[-1]
+
+        frameSurface = pygame.surfarray.make_surface(frame)
+        frameSurface = pygame.transform.rotate(frameSurface, -90)
+        self.screen.blit(frameSurface, (0, 0))
+        pygame.display.update()
+
+        
+
+

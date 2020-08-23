@@ -2,22 +2,22 @@
 import numpy as np 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
-
+import random
 class R2D2(object):
 
     
-    def __init__(self):
+    def __init__(self, env):
 
-        self.model_input_x = 480
-        self.model_input_y = 480
+        self.model_input_x = env.imgWidth
+        self.model_input_y = env.imgHeight
         self.model = Sequential([
-        Conv2D(32, 8, 4, input_shape=(self.model_input_x, self.model_input_y, 4,),
+        Conv2D(32, 8, 4, input_shape=(self.model_input_x, self.model_input_y, 4, ),
             activation='relu'),
         Conv2D(64, 4, 2, activation='relu'),
         Conv2D(64, 3, 1, activation='relu'),
         Flatten(),
         Dense(512, activation='relu'),
-        Dense(self.num_actions, activation='linear')
+        Dense(4, activation='linear')
         ]) 
 
         self.model.compile(optimizer='adam', loss='mse')
@@ -31,7 +31,7 @@ class R2D2(object):
         an e-greedy policy
         '''
         if np.random.rand() < e:
-            action = self.env.action_space.sample()
+            action = random.randint(0, 4)
             
         else:
             model_input  = self.preprocess_state(st)
@@ -55,7 +55,7 @@ class R2D2(object):
 
         for t in range(len(batch)):
             if not done[t]:
-                st1_q_value = self.target_model.predict([[st1[t]]])
+                st1_q_value = self.model.predict([st1[t]])
                 target[t, at[t]] = rt[t] + gamma*np.max(st1_q_value)
             else:
                 target[t, at[t]] = rt[t]
